@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, TIMESTAMP
+from sqlalchemy import Column, Integer, String, DateTime
 from database import Base
 
 class Repo(Base):
@@ -8,4 +8,4 @@ class Repo(Base):
     repo_name = Column(String, nullable=False)
     commit_count = Column(Integer)
     branch_count = Column(Integer)
-    last_commit_date = Column(TIMESTAMP)
+    last_commit_date = Column(DateTime)

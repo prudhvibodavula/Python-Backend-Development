@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
-import database, models
+import database, models, schemas, crud
+
 models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI()
@@ -16,21 +17,10 @@ def get_db():
 def hello_world():
     return {"message": "Hello World!!!"}
 
-@app.post("/repos/")
-def create_repo(repo_name: str, commit_count: int, branch_count: int, last_commit_date: str, db: Session = Depends(get_db)):
-    repo = models.Repo(
-        repo_name=repo_name,
-        commit_count=commit_count,
-        branch_count=branch_count,
-        last_commit_date=last_commit_date
-    )
-    db.add(repo)
-    db.commit()
-    db.refresh(repo)
-    return repo
+@app.post("/repos/", response_model=schemas.RepoResponse)
+def create_repo(repo: schemas.RepoCreate, db: Session = Depends(get_db)):
+    return crud.create_repo(db, repo)
 
-
-@app.get("/repos/")
+@app.get("/repos/", response_model=list[schemas.RepoResponse])
 def get_repos(db: Session = Depends(get_db)):
-    repos = db.query(models.Repo).all()
-    return repos
+    return crud.get_repos(db)
