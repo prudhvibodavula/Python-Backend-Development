@@ -15,3 +15,24 @@ def create_repo(db: Session, repo: schemas.RepoCreate):
 
 def get_repos(db: Session):
     return db.query(models.Repo).all()
+
+def update_repo(db: Session, repo_id: int, repo: schemas.RepoUpdate):
+    db_repo = db.query(models.Repo).filter(models.Repo.id == repo_id).first()
+    if not db_repo:
+        return None
+
+    update_data = repo.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_repo, key, value)
+
+    db.commit()
+    db.refresh(db_repo)
+    return db_repo
+
+def delete_repo(db: Session, repo_id: int):
+    db_repo = db.query(models.Repo).filter(models.Repo.id == repo_id).first()
+    if not db_repo:
+        return None  
+    db.delete(db_repo)
+    db.commit()
+    return db_repo
