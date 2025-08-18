@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -15,3 +16,9 @@ class RepoResponse(RepoBase):
 
     class Config:
         orm_mode = True  
+
+class RepoUpdate(BaseModel):
+    repo_name: Optional[str] = None
+    commit_count: Optional[int] = None
+    branch_count: Optional[int] = None
+    last_commit_date: Optional[datetime] = None
