@@ -1,6 +1,7 @@
 from fastapi import FastAPI,HTTPException, Depends
 from sqlalchemy.orm import Session
 import database, models, schemas, crud
+import github_service
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -38,3 +39,12 @@ def delete_repo_endpoint(repo_id: int, db: Session = Depends(get_db)):
     if not db_repo:
         raise HTTPException(status_code=404, detail="Repo not found")
     return db_repo
+
+# Code to test the github api integration
+@app.get("/github/me")
+def github_me():
+    try:
+        return github_service.whoami()
+    except Exception as e:
+        # This makes debugging easier in Postman/Swagger
+        raise HTTPException(status_code=400, detail=str(e))
