@@ -1,7 +1,6 @@
-from fastapi import FastAPI,HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
-import database, models, schemas, crud
-import github_service
+import database, models, schemas, crud, github_service
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -40,11 +39,43 @@ def delete_repo_endpoint(repo_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Repo not found")
     return db_repo
 
-# Code to test the github api integration
 @app.get("/github/me")
 def github_me():
     try:
         return github_service.whoami()
     except Exception as e:
-        # This makes debugging easier in Postman/Swagger
         raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/github/repos/{owner}/{repo}")
+def get_repo(owner: str, repo: str):
+    try:
+        return github_service.fetch_repo_data(owner, repo)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/github/fetch-repos-to-db")
+def fetch_and_store_repos(db: Session = Depends(get_db)):
+    try:
+        repos_data = github_service.get_all_repo_details()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching repos: {e}")
+
+    saved_repos = []
+
+    for repo in repos_data:
+        # Ensure last_commit_date is datetime or None
+        last_commit_date = repo.get("last_commit_date")
+        repo["last_commit_date"] = last_commit_date
+
+        # Check for existing repo
+        existing_repo = db.query(models.Repo).filter(models.Repo.repo_name == repo["repo_name"]).first()
+        if existing_repo:
+            saved_repos.append(existing_repo)
+            continue
+
+        # Insert new repo
+        repo_schema = schemas.RepoCreate(**repo)
+        saved_repo = crud.create_repo(db, repo_schema)
+        saved_repos.append(saved_repo)
+
+    return {"saved_count": len(saved_repos), "repos": saved_repos}
