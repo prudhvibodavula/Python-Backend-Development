@@ -6,16 +6,15 @@ class RepoBase(BaseModel):
     repo_name: str
     commit_count: int
     branch_count: int
-    last_commit_date: datetime
+    last_commit_date: Optional[datetime] = None
 
 class RepoCreate(RepoBase):
-    pass  
+    pass
 
 class RepoResponse(RepoBase):
     id: int
-
     class Config:
-        orm_mode = True  
+        orm_mode = True
 
 class RepoUpdate(BaseModel):
     repo_name: Optional[str] = None
