@@ -1,6 +1,10 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
+from typing import Optional, List
+from datetime import datetime
 import database, models, schemas, crud, github_service
+from sqlalchemy import cast, Date
+
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -21,9 +25,41 @@ def hello_world():
 def create_repo(repo: schemas.RepoCreate, db: Session = Depends(get_db)):
     return crud.create_repo(db, repo)
 
-@app.get("/repos/", response_model=list[schemas.RepoResponse])
-def get_repos(db: Session = Depends(get_db)):
-    return crud.get_repos(db)
+@app.get("/repos/", response_model=List[schemas.RepoResponse])
+def get_repos(
+    offset: int = Query(0, ge=0, description="Offset for pagination"),
+    repo_name: Optional[str] = Query(None, description="Filter by repo name"),
+    commit_count: Optional[int] = Query(None, description="Filter by commit count"),
+    branch_count: Optional[int] = Query(None, description="Filter by branch count"),
+    filter_date: Optional[str] = Query(None, description="Filter by last_commit_date (YYYY-MM-DD)"),
+    db: Session = Depends(get_db),
+):
+    query = db.query(models.Repo)
+
+    # Direct filters
+    if repo_name:
+        query = query.filter(models.Repo.repo_name == repo_name)
+    if commit_count is not None:
+        query = query.filter(models.Repo.commit_count == commit_count)
+    if branch_count is not None:
+        query = query.filter(models.Repo.branch_count == branch_count)
+    if filter_date:
+        try:
+            filter_day = datetime.strptime(filter_date, "%Y-%m-%d").date()
+            query = query.filter(cast(models.Repo.last_commit_date, Date) == filter_day)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="filter_date must be in YYYY-MM-DD format")
+
+    total_rows = query.count()
+
+    # Adjust offset if it's larger than available rows
+    if offset >= total_rows:
+        offset = max(total_rows - 5, 0)  # Return last 5 rows or start from 0 if less than 5
+
+    # Fixed pagination (always 5)
+    repos = query.offset(offset).limit(5).all()
+    return repos
+
 
 @app.patch("/repos/{repo_id}", response_model=schemas.RepoResponse)
 def update_repo_endpoint(repo_id: int, repo: schemas.RepoUpdate, db: Session = Depends(get_db)):
